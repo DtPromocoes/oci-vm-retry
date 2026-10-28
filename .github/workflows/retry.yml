@@ -1,9 +1,9 @@
 name: oci-vm-retry
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
 
 permissions:
   actions: write
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   retry:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +36,7 @@ jobs:
           OCI_REGION: ${{ secrets.OCI_REGION }}
           OCI_KEY: ${{ secrets.OCI_KEY }}
           SSH_PUBKEY: ${{ secrets.SSH_PUBKEY }}
+          BUDGET_SECONDS: "20400"
         run: python retry.py
 
       - name: Desativar workflow
@@ -43,3 +44,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow disable retry.yml -R "$GITHUB_REPOSITORY"
+
+      - name: Encadear proxima execucao
+        if: steps.run.outputs.chain == 'true' && steps.run.outputs.disable != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run retry.yml -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
